@@ -14,6 +14,15 @@
 # 产物：x64/Release/PowerMonitor.dll
 set -u
 
+# 统一编码环境：脚本内含中文提示，而 Windows runner 的控制台/管道默认可能是
+# cp1252 之类的窄编码，输出非 ASCII 字符会乱码甚至报错。这里显式切到 UTF-8，
+# 并让所有 Python 子进程也使用 UTF-8（PYTHONIOENCODING 对生成图标、拉取依赖
+# 两个脚本都生效，是最省事也最可靠的一层保护）。
+export PYTHONIOENCODING="utf-8:backslashreplace"
+export PYTHONUTF8=1
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-C.UTF-8}"
+
 _here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Git Bash 的 pwd 返回 /d/... 形式，cl.exe / rc.exe 会把它当成选项；
 # 优先用 pwd -W 取到 D:/... 形式。

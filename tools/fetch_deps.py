@@ -20,6 +20,19 @@ import os
 import sys
 import urllib.request
 
+# ---- 跨平台输出保护 ----------------------------------------------------------
+# Windows 的控制台/管道默认可能是 cp1252 / GBK 等窄编码，直接 print 中文会抛
+# UnicodeEncodeError（在 GitHub Actions 的 Windows runner 上必现）。
+# 这里把 stdout/stderr 都切到 UTF-8，并对无法编码的字符降级为转义，保证
+# 脚本在任何 locale 下都不会因为“打印一行中文”而失败。
+for _stream in ("stdout", "stderr"):
+    _s = getattr(sys, _stream, None)
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="backslashreplace")
+        except Exception:                              # noqa: BLE001 - 尽力而为
+            pass
+
 YYJSON_VERSION = "0.4.0"
 YYJSON_BASE = "https://raw.githubusercontent.com/ibireme/yyjson/%s/src/" % YYJSON_VERSION
 
@@ -49,11 +62,12 @@ def verify(dest_dir):
     for name, want in FILES.items():
         path = os.path.join(dest_dir, name)
         if not os.path.exists(path):
-            problems.append("%s 缺失" % name)
+            problems.append("%s missing" % name)
             continue
         got = sha256_of(path)
         if got != want:
-            problems.append("%s 校验不符（期望 %s…，实际 %s…）" % (name, want[:12], got[:12]))
+            problems.append("%s checksum mismatch (want %s..., got %s...)"
+                            % (name, want[:12], got[:12]))
     return (not problems), problems
 
 
@@ -61,21 +75,21 @@ def download_one(dest_dir, name):
     for base in MIRRORS:
         url = base + name
         try:
-            print("  - 下载 %s" % url)
+            print("  - downloading %s" % url)
             with urllib.request.urlopen(url, timeout=120) as resp:
                 data = resp.read()
         except Exception as exc:                      # noqa: BLE001 - 需要逐个镜像兜底
-            print("    失败：%s" % exc)
+            print("    failed: %s" % exc)
             continue
         digest = hashlib.sha256(data).hexdigest()
         if digest != FILES[name]:
-            print("    校验不符（%s…），换下一个镜像" % digest[:12])
+            print("    checksum mismatch (%s...), trying next mirror" % digest[:12])
             continue
         tmp = os.path.join(dest_dir, name + ".tmp")
         with open(tmp, "wb") as fp:
             fp.write(data)
         os.replace(tmp, os.path.join(dest_dir, name))
-        print("    完成（%d 字节）" % len(data))
+        print("    ok (%d bytes)" % len(data))
         return True
     return False
 
@@ -98,10 +112,10 @@ def main():
 
     ok, problems = verify(dest)
     if ok:
-        print("yyjson %s 已就绪：%s" % (YYJSON_VERSION, dest))
+        print("yyjson %s ready at %s" % (YYJSON_VERSION, dest))
         return 0
 
-    print("yyjson %s 未就绪：%s" % (YYJSON_VERSION, "；".join(problems)))
+    print("yyjson %s NOT ready: %s" % (YYJSON_VERSION, "; ".join(problems)))
     if args.check:
         return 1
 
@@ -110,14 +124,14 @@ def main():
         if verify(dest)[0]:
             break
         if not download_one(dest, name):
-            print("!! 无法获取 %s，请检查网络或手工放置" % name)
+            print("!! cannot fetch %s - check network or place it manually" % name)
             return 1
 
     ok, problems = verify(dest)
     if not ok:
-        print("!! 校验仍然失败：%s" % "；".join(problems))
+        print("!! verification still failing: %s" % "; ".join(problems))
         return 1
-    print("yyjson %s 获取完成" % YYJSON_VERSION)
+    print("yyjson %s fetched" % YYJSON_VERSION)
     return 0
 
 

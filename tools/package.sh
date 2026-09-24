@@ -5,6 +5,12 @@
 # 前置：已执行 bash build_x64.sh
 set -eu
 
+# 统一编码环境（脚本内含中文提示，Windows 窄编码控制台下会乱码）
+export PYTHONIOENCODING="utf-8:backslashreplace"
+export PYTHONUTF8=1
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-C.UTF-8}"
+
 VERSION="${1:-v1.0.0}"
 
 _here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

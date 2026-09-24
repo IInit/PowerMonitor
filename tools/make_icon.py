@@ -18,6 +18,18 @@ import struct
 import sys
 import zlib
 
+# ---- 跨平台输出保护 ----------------------------------------------------------
+# Windows 控制台/管道可能是 cp1252 / GBK 等窄编码，print 非 ASCII 内容会抛
+# UnicodeEncodeError（GitHub Actions 的 Windows runner 上必现）。统一切到
+# UTF-8，并对无法编码的字符降级为转义。
+for _stream in ("stdout", "stderr"):
+    _s = getattr(sys, _stream, None)
+    if _s is not None and hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="backslashreplace")
+        except Exception:                              # noqa: BLE001 - 尽力而为
+            pass
+
 # ----------------------------------------------------------------- 图形定义
 SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
 SS = 4                      # 超采样倍数（先放大绘制再缩小，得到抗锯齿边缘）
