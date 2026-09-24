@@ -69,7 +69,15 @@
 `● 已保存 hh:mm:ss → <配置文件路径>`，不必关窗即可确认是否保存成功；写盘失败会明确提示原因，
 不会静默丢弃。
 
-![电价设置](docs/images/dialog-tariff.svg)
+> 下图是**实际运行截图**（由 `tests/windows/dialog_probe.cpp` 在构建时自动渲染导出）：
+> 所有字段名与「来源 / 生效 / 备注」信息都按控件真实字体测量过宽度，
+> 长文本自动折行，确保在不同 DPI 与语言长度下都完整可见、不被裁剪。
+
+![电价设置](docs/images/dialog-tariff.png)
+
+### 硬件与采样设置窗口
+
+![硬件与采样设置](docs/images/dialog-options.png)
 
 ### 用量统计窗口
 
@@ -256,7 +264,8 @@ Enable them under TrafficMonitor's *Display settings*:
 4. **About…** — version, author, license and homepage link.
 5. **Homepage (GitHub)…** — opens <https://github.com/IInit>.
 
-![Tariff dialog](docs/images/dialog-tariff.svg)
+![Tariff dialog](docs/images/dialog-tariff.png)
+![Hardware & sampling dialog](docs/images/dialog-options.png)
 ![Statistics window](docs/images/dialog-stats.svg)
 
 ### Install

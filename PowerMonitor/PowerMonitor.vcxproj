@@ -197,6 +197,7 @@
     <ClCompile Include="PowerMonitorItem.cpp" />
     <ClCompile Include="OptionsDlg.cpp" />
     <ClCompile Include="TariffDlg.cpp" />
+    <ClCompile Include="DlgLayout.cpp" />
     <ClCompile Include="StatsDlg.cpp" />
     <ClCompile Include="yyjson\yyjson.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>

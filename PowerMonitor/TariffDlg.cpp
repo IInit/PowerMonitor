@@ -11,6 +11,7 @@
 #include "TariffDlg.h"
 #include "Tariffs.h"
 #include "Encoding.h"
+#include "DlgLayout.h"
 #include <cstdio>
 #include <string>
 
@@ -134,69 +135,88 @@ BOOL CTariffDlg::OnInitDialog()
 
     m_font.CreatePointFont(90, L"MS Shell Dlg");
 
+    // 标签列宽按实际字体测量：写死 DLU 会让较长的中文标签
+    // （如「谷段电价（枯/平水期）」）从左侧溢出被裁掉。
+    // 电平组与时段组的标签集合不同，分别测量，保证各自组内左边缘对齐。
+    static const wchar_t* kPriceLabels[] = {
+        L"峰段电价", L"平段电价", L"谷段电价（枯/平水期）", L"谷段电价（丰水期）",
+    };
+    static const wchar_t* kHrsLabels[] = {
+        L"峰段时段（如 8-22）", L"谷段时段（如 23-7）", L"丰水月（逗号分隔）",
+    };
+    const int kLabelMinDlu = 74;     // 下限：保持历史版视觉比例
+    const int kLabelPadDlu = 6;
+    int label_price = dlglayout::MeasureLabelColumnDlu(
+        h, (HFONT)m_font.GetSafeHandle(), kPriceLabels, 4, kLabelMinDlu, kLabelPadDlu);
+    int label_hrs = dlglayout::MeasureLabelColumnDlu(
+        h, (HFONT)m_font.GetSafeHandle(), kHrsLabels, 3, kLabelMinDlu, kLabelPadDlu);
+
     // ---- 省份 / 方案 ----
-    CStatic l_region;
-    l_region.Create(L"省份/地区", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
-                    Dlu(h, 8, 8, 50, 20), this);
-    l_region.SetFont(&m_font);
-    l_region.Detach();
+    // 这两个标签较短，但也按测量走，避免英文/大字号下被裁
+    m_lbl_region.Create(L"省份/地区", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
+                        Dlu(h, 8, 8, 8 + label_price, 21), this);
+    m_lbl_region.SetFont(&m_font);
+    if (dlglayout::MeasureSelfTextWidth(m_lbl_region.GetSafeHwnd()) > 0)
+        dlglayout::WidenToFitText(m_lbl_region.GetSafeHwnd());
     m_cb_region.Create(WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
-                       Dlu(h, 54, 6, 218, 110), this, IDC_TAR_REGION);
+                       Dlu(h, 8 + label_price, 6, 218, 110), this, IDC_TAR_REGION);
     m_cb_region.SetFont(&m_font);
 
-    CStatic l_plan;
-    l_plan.Create(L"用电方案", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
-                  Dlu(h, 8, 24, 50, 36), this);
-    l_plan.SetFont(&m_font);
-    l_plan.Detach();
+    m_lbl_plan.Create(L"用电方案", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
+                      Dlu(h, 8, 24, 8 + label_price, 37), this);
+    m_lbl_plan.SetFont(&m_font);
+    if (dlglayout::MeasureSelfTextWidth(m_lbl_plan.GetSafeHwnd()) > 0)
+        dlglayout::WidenToFitText(m_lbl_plan.GetSafeHwnd());
     m_cb_plan.Create(WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
-                     Dlu(h, 54, 22, 218, 110), this, IDC_TAR_PLAN);
+                     Dlu(h, 8 + label_price, 22, 218, 110), this, IDC_TAR_PLAN);
     m_cb_plan.SetFont(&m_font);
 
     // ---- 电价分组 ----
-    CStatic grp_price;
-    grp_price.Create(L"电价（元/度）", WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-                     Dlu(h, 5, 40, 219, 104), this);
-    grp_price.SetFont(&m_font);
-    grp_price.Detach();
+    m_grp_price.Create(L"电价（元/度）", WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+                       Dlu(h, 5, 40, 219, 104), this, -1);
+    m_grp_price.SetFont(&m_font);
 
-    auto priceRow = [&](CEdit& e, const wchar_t* label, double val, int y, UINT nid) {
-        CStatic l;
+    // 输入框右边界固定，左边界随标签列宽移动 => 输入框宽度自适应
+    const int kEditRight = 194;
+    auto priceRow = [&](int li, CEdit& e, const wchar_t* label, double val, int y, UINT nid) {
+        CStatic& l = m_lbl_price[li];
         l.Create(label, WS_CHILD | WS_VISIBLE | SS_RIGHT | SS_CENTERIMAGE,
-                 Dlu(h, 12, y, 90, y + 12), this);
+                 Dlu(h, 12, y, 12 + label_price, y + 13), this);
         l.SetFont(&m_font);
-        l.Detach();
+        // 兜底自校正：用控件自身字体实测，放不下就向左加宽
+        if (dlglayout::MeasureSelfTextWidth(l.GetSafeHwnd()) > 0)
+            dlglayout::WidenToFitText(l.GetSafeHwnd());
         e.Create(WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL,
-                 Dlu(h, 94, y, 164, y + 12), this, nid);
+                 Dlu(h, 12 + label_price + 4, y, kEditRight, y + 13), this, nid);
         e.SetFont(&m_font);
         setNum(e, val);
     };
-    priceRow(m_e_peak, L"峰段电价", m_cfg.price_peak, 48, IDC_TAR_PEAK);
-    priceRow(m_e_flat, L"平段电价", m_cfg.price_flat, 62, IDC_TAR_FLAT);
-    priceRow(m_e_vdry, L"谷段电价（枯/平水期）", m_cfg.price_valley_dry, 76, IDC_TAR_VALLEY_DRY);
-    priceRow(m_e_vwet, L"谷段电价（丰水期）", m_cfg.price_valley_wet, 90, IDC_TAR_VALLEY_WET);
+    priceRow(0, m_e_peak, L"峰段电价", m_cfg.price_peak, 48, IDC_TAR_PEAK);
+    priceRow(1, m_e_flat, L"平段电价", m_cfg.price_flat, 62, IDC_TAR_FLAT);
+    priceRow(2, m_e_vdry, L"谷段电价（枯/平水期）", m_cfg.price_valley_dry, 76, IDC_TAR_VALLEY_DRY);
+    priceRow(3, m_e_vwet, L"谷段电价（丰水期）", m_cfg.price_valley_wet, 90, IDC_TAR_VALLEY_WET);
 
     // ---- 时段与丰枯 ----
-    CStatic grp_hrs;
-    grp_hrs.Create(L"时段与丰枯", WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-                   Dlu(h, 5, 108, 219, 168), this);
-    grp_hrs.SetFont(&m_font);
-    grp_hrs.Detach();
+    m_grp_hrs.Create(L"时段与丰枯", WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+                     Dlu(h, 5, 108, 219, 168), this, -1);
+    m_grp_hrs.SetFont(&m_font);
 
-    auto hrsRow = [&](CEdit& e, const wchar_t* label, const CString& val, int y, UINT nid) {
-        CStatic l;
+    auto hrsRow = [&](int li, CEdit& e, const wchar_t* label, const CString& val, int y, UINT nid) {
+        CStatic& l = m_lbl_hrs[li];
         l.Create(label, WS_CHILD | WS_VISIBLE | SS_RIGHT | SS_CENTERIMAGE,
-                 Dlu(h, 12, y, 90, y + 12), this);
+                 Dlu(h, 12, y, 12 + label_hrs, y + 13), this);
         l.SetFont(&m_font);
-        l.Detach();
+        // 兜底自校正：用控件自身字体实测，放不下就向左加宽
+        if (dlglayout::MeasureSelfTextWidth(l.GetSafeHwnd()) > 0)
+            dlglayout::WidenToFitText(l.GetSafeHwnd());
         e.Create(WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL,
-                 Dlu(h, 94, y, 214, y + 12), this, nid);
+                 Dlu(h, 12 + label_hrs + 4, y, 214, y + 13), this, nid);
         e.SetFont(&m_font);
         e.SetWindowText(val);
     };
-    hrsRow(m_e_peakhrs, L"峰段时段（如 8-22）", Utf8ToCString(m_cfg.peak_hours), 116, IDC_TAR_PEAK_HRS);
-    hrsRow(m_e_valleyhrs, L"谷段时段（如 23-7）", Utf8ToCString(m_cfg.valley_hours), 130, IDC_TAR_VALLEY_HRS);
-    hrsRow(m_e_wetmonths, L"丰水月（逗号分隔）", CString(joinMonths(m_cfg.valley_wet_months).c_str()), 144, IDC_TAR_WET_MONTHS);
+    hrsRow(0, m_e_peakhrs, L"峰段时段（如 8-22）", Utf8ToCString(m_cfg.peak_hours), 116, IDC_TAR_PEAK_HRS);
+    hrsRow(1, m_e_valleyhrs, L"谷段时段（如 23-7）", Utf8ToCString(m_cfg.valley_hours), 130, IDC_TAR_VALLEY_HRS);
+    hrsRow(2, m_e_wetmonths, L"丰水月（逗号分隔）", CString(joinMonths(m_cfg.valley_wet_months).c_str()), 144, IDC_TAR_WET_MONTHS);
 
     // ---- 状态 / 来源信息（必须在 fill* 之前建好） ----
     m_meta.Create(L"", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX,
@@ -248,13 +268,53 @@ void CTariffDlg::refreshMeta()
 {
     if (!m_meta.GetSafeHwnd())
         return;
+
+    // 「来源/生效/备注」这几行本身就可能很长（网络汇总口径的备注可超过 800px），
+    // 而控件宽度只有 200 多 DLU。若不折行会被右侧裁掉，用户看不到完整信息。
+    // 注意：SS_LEFT 静态控件**不会**自动换行，必须在写入前手工插入换行符；
+    // 同时多行文字需要更高的矩形，否则只能看到第一行的残影。
+    //
+    // 但**状态行不参与折行**：它是"● 已保存 00:12:34 → ..."这类短提示，
+    // 若被拦腰折断（"已保/存"），既难看，也会让外部按子串检索状态的地方失效。
+    HWND h = m_meta.GetSafeHwnd();
+    HFONT font = (HFONT)m_font.GetSafeHandle();
+
+    CRect rc;
+    m_meta.GetWindowRect(&rc);
+    ScreenToClient(&rc);
+    const int width_px = rc.Width();
+
     CString text;
     if (!m_status.IsEmpty())
-        text = m_status + L"\r\n";
-    text += m_meta_info;
+    {
+        text = m_status;
+        if (!m_meta_info.IsEmpty())
+            text += L"\r\n";
+    }
+    if (!m_meta_info.IsEmpty() && width_px > 0)
+    {
+        std::wstring wrapped = dlglayout::WrapToWidth(
+            h, font, (LPCWSTR)m_meta_info, width_px, 64);
+        text += wrapped.c_str();
+    }
+    else
+    {
+        text += m_meta_info;
+    }
+
+    // 按最终文本实测高度，必要时把控件拉高（只增不减，避免抖动）
+    if (width_px > 0)
+    {
+        int need_px = dlglayout::MeasureWrappedHeight(h, font, (LPCWSTR)text, width_px);
+        if (need_px > rc.Height())
+        {
+            m_meta.SetWindowPos(nullptr, rc.left, rc.top, rc.Width(), need_px,
+                                SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    }
+
     m_meta.SetWindowText(text);
 }
-
 // ---------------------------------------------------------------- 数据回填
 void CTariffDlg::fillPlans(const Region* r)
 {

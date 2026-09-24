@@ -4,8 +4,10 @@
 // 做法：LoadLibrary 加载 PowerMonitor.dll，在工作线程上以模态方式打开对话框，
 //       主线程抓取该 HWND，枚举全部子控件，检查 类名 / 控件ID / 可见性 / 客户区坐标 / 文本。
 //
-// 用法：DlgProbe.exe <PowerMonitor.dll> [config_dir]
+// 用法：DlgProbe.exe <PowerMonitor.dll> [config_dir] [png_out_dir]
 #include <windows.h>
+#include <objbase.h>
+#include <gdiplus.h>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -14,6 +16,9 @@
 #include "include/PluginInterface.h"
 
 typedef ITMPlugin* (*PFN_GetInstance)();
+
+// 截图输出目录（命令行第 3 个参数，空则不截图）
+static std::wstring g_png_dir;
 
 static const int CMD_TARIFF = 1;
 
@@ -71,6 +76,101 @@ static std::wstring WindowText(HWND h)
     std::wstring s((size_t)n, L'\0');
     ::GetWindowTextW(h, &s[0], n + 1);
     return s;
+}
+
+// ------------------------------------------------------------------ 文字是否放得下
+// 用控件自身的字体测量文字的实际渲染尺寸，与控件客户区比较。
+// 这是"控件存在、可见、位置正确，但屏幕上看着被截断"这类问题的判定依据——
+// 前面的检查只看矩形，看不到文字溢出。
+struct TextFit
+{
+    int need_w = 0, need_h = 0;   // 文字需要的像素
+    int have_w = 0, have_h = 0;   // 控件客户区像素
+    int font_h = 0;               // 控件字体高度（诊断用）
+    int dpi = 0;                  // 控件 DC 的垂直 DPI（诊断用）
+    bool multiline = false;       // 该控件按多行排版测量
+    bool ok = true;
+};
+
+// 该控件是否允许文字自动折行？
+//   多行 Static（SS_LEFT / 默认）会折行；SS_SIMPLE、SS_RIGHT、按钮、编辑框都不折。
+// 判定依据是窗口样式，而不是"文字里有没有 \n"——判据要跟控件真实渲染一致。
+static bool AllowsWrapping(HWND h)
+{
+    wchar_t cls[64] = { 0 };
+    ::GetClassNameW(h, cls, 64);
+    if (::wcscmp(cls, L"Static") != 0)
+        return false;
+
+    LONG style = ::GetWindowLongW(h, GWL_STYLE);
+    if (style & SS_SIMPLE)
+        return false;                       // SS_SIMPLE 明确不折行
+    LONG align = style & SS_TYPEMASK;       // 取对齐类型
+    if (align == SS_RIGHT || align == SS_CENTER)
+        return false;                       // 右/居中的单行标签
+    return true;                            // SS_LEFT / SS_LEFTNOWORDWRAP 之外默认按多行
+}
+
+static TextFit MeasureTextFit(HWND h)
+{
+    TextFit f;
+    RECT rc{};
+    ::GetClientRect(h, &rc);
+    f.have_w = rc.right - rc.left;
+    f.have_h = rc.bottom - rc.top;
+
+    std::wstring t = WindowText(h);
+    if (t.empty())
+        return f;
+
+    HDC dc = ::GetDC(h);
+    if (dc == nullptr)
+        return f;
+
+    // 用控件当前字体测量，才反映真实渲染结果
+    HFONT font = (HFONT)::SendMessageW(h, WM_GETFONT, 0, 0);
+    HGDIOBJ old = nullptr;
+    if (font != nullptr)
+        old = ::SelectObject(dc, font);
+
+    LOGFONTW lf{};
+    if (font)
+        ::GetObjectW(font, sizeof(lf), &lf);
+    f.font_h = lf.lfHeight;
+    f.dpi = ::GetDeviceCaps(dc, LOGPIXELSY);
+
+    f.multiline = AllowsWrapping(h) && f.have_w > 0;
+    if (f.multiline)
+    {
+        // 多行控件：按**控件真实宽度**排版，看需要的行高是否放得下。
+        // 这正是控件自己的渲染方式（含显式 \n 与自动折行），
+        // 用 DT_SINGLELINE 量它会得出"超级宽的一行"这种假阳性。
+        RECT calc{ 0, 0, f.have_w, 0 };
+        ::DrawTextW(dc, t.c_str(), (int)t.size(), &calc,
+                    DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
+        f.need_w = calc.right - calc.left;    // 折行后最宽一行的宽度
+        f.need_h = calc.bottom - calc.top;    // 折行后需要的总高度
+    }
+    else
+    {
+        RECT calc{ 0, 0, 0, 0 };
+        ::DrawTextW(dc, t.c_str(), (int)t.size(), &calc,
+                    DT_CALCRECT | DT_SINGLELINE | DT_NOPREFIX);
+        f.need_w = calc.right - calc.left;
+        f.need_h = calc.bottom - calc.top;
+    }
+
+    if (old != nullptr)
+        ::SelectObject(dc, old);
+    ::ReleaseDC(h, dc);
+
+    // 单行控件给一点余量：不同字体渲染有 1-2px 抖动。
+    // 多行控件只需保证"折行后高度放得下"——宽度由排版保证 <= have_w。
+    if (f.multiline)
+        f.ok = (f.need_h <= f.have_h);
+    else
+        f.ok = (f.need_w <= f.have_w) && (f.need_h <= f.have_h);
+    return f;
 }
 
 static BOOL CALLBACK FindDlgProc(HWND h, LPARAM lp)
@@ -171,6 +271,50 @@ static std::vector<CtrlInfo> EnumChildren(HWND dlg){
     return out;
 }
 
+// ------------------------------------------------------------------ 截图
+// 把对话框窗口渲染成 PNG，便于人工核对"文字是否完整显示"——
+// 自动化断言只能证明几何放得下，截图才是给人看的最终证据。
+static bool SaveDialogPng(HWND dlg, const wchar_t* path)
+{
+    RECT rc{};
+    if (!::GetWindowRect(dlg, &rc))
+        return false;
+    int w = rc.right - rc.left;
+    int h = rc.bottom - rc.top;
+    if (w <= 0 || h <= 0)
+        return false;
+
+    // 先强制重绘并给消息循环一点时间，否则 PrintWindow(PW_RENDERFULLCONTENT)
+    // 可能抓到"还没来得及画"的空白状态（截图与渲染竞争）。
+    ::RedrawWindow(dlg, nullptr, nullptr,
+                   RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW | RDW_FRAME);
+    ::UpdateWindow(dlg);
+    ::Sleep(500);
+
+    HDC screen = ::GetDC(nullptr);
+    HDC mem = ::CreateCompatibleDC(screen);
+    HBITMAP bmp = ::CreateCompatibleBitmap(screen, w, h);
+    HGDIOBJ old = ::SelectObject(mem, bmp);
+
+    // 用 WM_PRINT 让**所有子控件**都把自己画进我们的 DC。
+    // 比 PrintWindow 更可靠：PrintWindow 在某些合成/主题场景下只画标题栏。
+    ::SendMessageW(dlg, WM_PRINT, (WPARAM)mem,
+                   PRF_CLIENT | PRF_NONCLIENT | PRF_CHILDREN | PRF_ERASEBKGND);
+
+    // 用 GDI+ 编码 PNG（探针已链接 gdiplus.lib）
+    Gdiplus::Bitmap out(bmp, nullptr);
+    CLSID clsid;
+    bool ok = false;
+    if (::CLSIDFromString(L"{557cf406-1a04-11d3-9a73-0000f81ef32e}", &clsid) == S_OK)
+        ok = (out.Save(path, &clsid, nullptr) == Gdiplus::Ok);
+
+    ::SelectObject(mem, old);
+    ::DeleteObject(bmp);
+    ::DeleteDC(mem);
+    ::ReleaseDC(nullptr, screen);
+    return ok;
+}
+
 static void DumpChildren(HWND dlg, const char* title)
 {
     std::vector<CtrlInfo> kids = EnumChildren(dlg);
@@ -178,22 +322,43 @@ static void DumpChildren(HWND dlg, const char* title)
     ::GetClientRect(dlg, &cr);
     std::printf("\n---- %s：子控件 %d 个（客户区 %ldx%ld）----\n",
                 title, (int)kids.size(), (long)(cr.right - cr.left), (long)(cr.bottom - cr.top));
-    int vis = 0, inarea = 0;
+    int vis = 0, inarea = 0, overflow = 0;
     for (const CtrlInfo& c : kids)
     {
         std::wstring t = WindowText(c.hwnd);
-        if (t.size() > 40)
-            t = t.substr(0, 40) + L"…";
+        std::wstring shown = t;
+        if (shown.size() > 40)
+            shown = shown.substr(0, 40) + L"…";
+        for (wchar_t& ch : shown)
+            if (ch == L'\n' || ch == L'\r')
+                ch = L'|';   // 换行转成可见符号，否则打印会在那里截断
         if (c.visible) ++vis;
         if (c.visible && c.inside) ++inarea;
-        std::printf("  id=%-5d %-12s vis=%d rect=(%4ld,%4ld,%4ld,%4ld) %s text=%s\n",
+
+        // 文字放不下时明确标出，并给出需要/可用的像素宽度
+        TextFit fit = MeasureTextFit(c.hwnd);
+        char fitNote[128] = "";
+        const char* fitFlag = "   ";
+        if (!fit.ok && !t.empty())
+        {
+            ++overflow;
+            fitFlag = "TXT";
+            std::snprintf(fitNote, sizeof(fitNote),
+                          "  [文字溢出 need=%dx%d have=%dx%d%s fontH=%d dpi=%d]",
+                          fit.need_w, fit.need_h, fit.have_w, fit.have_h,
+                          fit.multiline ? " ML" : "", fit.font_h, fit.dpi);
+        }
+
+        std::printf("  id=%-5d %-12s vis=%d rect=(%4ld,%4ld,%4ld,%4ld) %s %s fontH=%-3d text=%s%s\n",
                     c.id, ToUtf8(c.cls).c_str(), c.visible ? 1 : 0,
                     (long)c.rc.left, (long)c.rc.top, (long)c.rc.right, (long)c.rc.bottom,
-                    c.inside ? "  " : "OUT", ToUtf8(t).c_str());
+                    c.inside ? "  " : "OUT", fitFlag, fit.font_h, ToUtf8(shown).c_str(), fitNote);
     }
-    std::printf("  可见 %d / 总 %d ；可见且在客户区内 %d\n", vis, (int)kids.size(), inarea);
+    std::printf("  可见 %d / 总 %d ；可见且在客户区内 %d ；文字放不下 %d\n",
+                vis, (int)kids.size(), inarea, overflow);
     Check(vis == (int)kids.size(), "所有子控件都可见");
     Check(inarea == (int)kids.size(), "所有子控件都落在客户区内（没有被裁剪）");
+    Check(overflow == 0, "所有控件的文字都放得下（未被截断）");
 }
 
 // 检查某个 ID 的控件存在、可见且完全落在客户区内
@@ -321,6 +486,7 @@ int wmain(int argc, wchar_t** argv)
     }
     const wchar_t* dll_path = argv[1];
     std::wstring cfg_dir = argc >= 3 ? argv[2] : L"";
+    g_png_dir = argc >= 4 ? argv[3] : L"";
     if (cfg_dir.empty())
     {
         cfg_dir = dll_path;
@@ -333,6 +499,12 @@ int wmain(int argc, wchar_t** argv)
     ::DeleteFileW(cfg_file.c_str());
 
     std::printf("DLL: %s\nCFG: %s\n\n", ToUtf8(dll_path).c_str(), ToUtf8(cfg_dir).c_str());
+
+    // GDI+ 用于截图输出 PNG（可选功能，初始化失败不影响断言）
+    Gdiplus::GdiplusStartupInput gdi_in;
+    ULONG_PTR gdi_token = 0;
+    if (!g_png_dir.empty())
+        Gdiplus::GdiplusStartup(&gdi_token, &gdi_in, nullptr);
 
     HMODULE mod = ::LoadLibraryW(dll_path);
     if (mod == nullptr)
@@ -376,6 +548,12 @@ int wmain(int argc, wchar_t** argv)
     Check(WindowText(dlg) == L"电价设置", "标题 == 电价设置（确认加载的是本 DLL 的模板）");
     ::Sleep(400);
     DumpChildren(dlg, "电价设置 控件树");
+    if (!g_png_dir.empty())
+    {
+        std::wstring p = g_png_dir + L"\\dialog_tariff.png";
+        std::printf("  截图：%s %s\n", ToUtf8(p).c_str(),
+                    SaveDialogPng(dlg, p.c_str()) ? "已保存" : "失败");
+    }
 
     std::printf("\n---- 字段级检查 ----\n");
     CheckCtrl(dlg, IDOK, "「确定」按钮可见且未被裁剪", false);
@@ -452,6 +630,12 @@ int wmain(int argc, wchar_t** argv)
     {
         ::Sleep(400);
         DumpChildren(dlg3, "选项设置 控件树");
+        if (!g_png_dir.empty())
+        {
+            std::wstring p = g_png_dir + L"\\dialog_options.png";
+            std::printf("  截图：%s %s\n", ToUtf8(p).c_str(),
+                        SaveDialogPng(dlg3, p.c_str()) ? "已保存" : "失败");
+        }
         CheckCtrl(dlg3, IDOK, "「确定」按钮可见且未被裁剪", false);
         CheckCtrl(dlg3, IDCANCEL, "「取消」按钮可见且未被裁剪", false);
         CloseDialog(dlg3, worker3, IDCANCEL, "Phase 5 取消按钮");
@@ -514,6 +698,8 @@ int wmain(int argc, wchar_t** argv)
     }
 
     ::FreeLibrary(mod);
+    if (gdi_token != 0)
+        Gdiplus::GdiplusShutdown(gdi_token);
     std::printf("\n==== %s (%d failure) ====\n", g_fail == 0 ? "PASS" : "FAIL", g_fail);
     return g_fail == 0 ? 0 : 1;
 }

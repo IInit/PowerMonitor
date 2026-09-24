@@ -36,6 +36,7 @@
     <ClInclude Include="PowerMonitorItem.h"><Filter>Plugin</Filter></ClInclude>
     <ClInclude Include="OptionsDlg.h"><Filter>UI</Filter></ClInclude>
     <ClInclude Include="TariffDlg.h"><Filter>UI</Filter></ClInclude>
+    <ClInclude Include="DlgLayout.h"><Filter>UI</Filter></ClInclude>
     <ClInclude Include="StatsDlg.h"><Filter>UI</Filter></ClInclude>
     <ClInclude Include="include\PluginInterface.h"><Filter>SDK</Filter></ClInclude>
     <ClInclude Include="yyjson\yyjson.h"><Filter>SDK</Filter></ClInclude>
@@ -54,6 +55,7 @@
     <ClCompile Include="PowerMonitorItem.cpp"><Filter>Plugin</Filter></ClCompile>
     <ClCompile Include="OptionsDlg.cpp"><Filter>UI</Filter></ClCompile>
     <ClCompile Include="TariffDlg.cpp"><Filter>UI</Filter></ClCompile>
+    <ClCompile Include="DlgLayout.cpp"><Filter>UI</Filter></ClCompile>
     <ClCompile Include="StatsDlg.cpp"><Filter>UI</Filter></ClCompile>
     <ClCompile Include="yyjson\yyjson.c"><Filter>SDK</Filter></ClCompile>
   </ItemGroup>

@@ -57,6 +57,19 @@ private:
     CString m_meta_info;   // 来源 / 生效 / 备注
     CString m_status;      // 保存结果状态行
 
+    // 标签 / 组框：必须是持久成员，不能用局部 CStatic + Detach()。
+    // Detach() 会让控件字体丢失（WM_GETFONT 变 NULL），改用系统默认字体渲染，
+    // 文字会比按 m_font 测量的宽约 23%，右对齐标签从左侧溢出被裁掉。
+    CStatic m_lbl_region;
+    CStatic m_lbl_plan;
+    // 组框必须是 CButton（BS_GROUPBOX 是按钮类样式；用 CStatic 会被当成 SS_BLACKFRAME，
+    // 只画空矩形、标题不显示）——详见 OptionsDlg.h 的同类注释
+    CButton m_grp_price;
+    CButton m_grp_hrs;
+    // 两组行标签（各 4 / 3 个，统一列宽对齐）
+    CStatic m_lbl_price[4];
+    CStatic m_lbl_hrs[3];
+
     ApplyHandler m_on_apply;
 
     void fillPlans(const Region* r);

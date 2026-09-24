@@ -132,7 +132,7 @@ mkdir -p "$OBJ"
 export INCLUDE="$PM_TC/atlmfc/include;$PM_MSVC/atlmfc/include;$PM_MSVC/include;$PM_SDK/Include/$PM_SDKVER/ucrt;$PM_SDK/Include/$PM_SDKVER/shared;$PM_SDK/Include/$PM_SDKVER/um;$PM_SDK/Include/$PM_SDKVER/winrt;$PM_SDK/Include/$PM_SDKVER/cppwinrt"
 export LIB="$PM_MSVC/lib/x64;$PM_MSVC/atlmfc/lib/x64;$PM_TC/atlmfc/lib/x64;$PM_SDK/Lib/$PM_SDKVER/ucrt/x64;$PM_SDK/Lib/$PM_SDKVER/um/x64"
 
-CFLAGS="/nologo /c /utf-8 /EHsc /std:c++17 /MD /O2 /Oi /Gy /W3 /WX- /permissive- /DNDEBUG /D_WINDOWS /D_USRDLL /D_AFXDLL /DUNICODE /D_UNICODE /I$PROJ /I$PROJ/include"
+CFLAGS="/nologo /c /utf-8 /EHsc /std:c++17 /MD /O2 /Oi /Gy /W3 /WX- /permissive- /DNDEBUG /D_WINDOWS /D_USRDLL /D_AFXDLL /DUNICODE /D_UNICODE /I$PROJ /I$PROJ/include${PM_EXTRA_CDEFS:-}"
 
 SOURCES=(
   pch.cpp
@@ -148,6 +148,7 @@ SOURCES=(
   PowerMonitorItem.cpp
   OptionsDlg.cpp
   TariffDlg.cpp
+  DlgLayout.cpp
   StatsDlg.cpp
 )
 CSOURCES=( yyjson/yyjson.c )
@@ -177,7 +178,7 @@ if [ "$fail" != "0" ]; then
 fi
 
 echo "=== link ==="
-OBJS="$OBJ/pch.obj $OBJ/Config.obj $OBJ/FileUtil.obj $OBJ/Tariffs.obj $OBJ/Meter.obj $OBJ/Fields.obj $OBJ/Sensors.obj $OBJ/PowerOn.obj $OBJ/Encoding.obj $OBJ/PowerMonitor.obj $OBJ/PowerMonitorItem.obj $OBJ/OptionsDlg.obj $OBJ/TariffDlg.obj $OBJ/StatsDlg.obj $OBJ/yyjson.obj $OBJ/PowerMonitor.res"
+OBJS="$OBJ/pch.obj $OBJ/Config.obj $OBJ/FileUtil.obj $OBJ/Tariffs.obj $OBJ/Meter.obj $OBJ/Fields.obj $OBJ/Sensors.obj $OBJ/PowerOn.obj $OBJ/Encoding.obj $OBJ/PowerMonitor.obj $OBJ/PowerMonitorItem.obj $OBJ/OptionsDlg.obj $OBJ/TariffDlg.obj $OBJ/DlgLayout.obj $OBJ/StatsDlg.obj $OBJ/yyjson.obj $OBJ/PowerMonitor.res"
 
 "$LINK" /nologo /DLL /SUBSYSTEM:WINDOWS /MACHINE:X64 \
     /OPT:REF /OPT:ICF /INCREMENTAL:NO /DEBUG:NONE \
@@ -224,10 +225,16 @@ echo "=== build dialog probe ==="
 "$CL" /nologo /EHsc /std:c++17 /MD /O2 /utf-8 /DUNICODE /D_UNICODE \
     "/I$PROJ" "/I$PROJ/include" \
     "$ROOT/tests/windows/dialog_probe.cpp" \
-    "/Fo$OBJ/" "/Fe:$OUT/DlgProbe.exe" user32.lib || exit 1
+    "/Fo$OBJ/" "/Fe:$OUT/DlgProbe.exe" \
+    user32.lib gdi32.lib gdiplus.lib ole32.lib || exit 1
 
 echo "=== run dialog probe ==="
-"$OUT/DlgProbe.exe" "$OUT/PowerMonitor.dll" "$OUT/_probecfg"
+# 第 3 个参数是截图目录：把两个对话框渲染成 PNG，便于人工核对文字是否完整
+# （CI 上无交互桌面时 PM_SKIP_DIALOG_PROBE=1 会提前跳过，不会走到这里）
+PNG_DIR="$OUT/_shots"
+rm -rf "$PNG_DIR"
+mkdir -p "$PNG_DIR"
+"$OUT/DlgProbe.exe" "$OUT/PowerMonitor.dll" "$OUT/_probecfg" "$PNG_DIR"
 rc=$?
 rm -rf "$OUT/_probecfg"
 if [ "$rc" != "0" ]; then
