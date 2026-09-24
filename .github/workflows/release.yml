@@ -30,22 +30,79 @@ jobs:
       - name: Locate MSVC / Windows SDK
         shell: pwsh
         run: |
+          # ---- MSVC ----------------------------------------------------
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "vswhere not found at $vswhere" }
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $vs) { throw 'Visual Studio with VC tools not found' }
-          $msvc = Get-ChildItem "$vs\VC\Tools\MSVC" | Sort-Object Name -Descending | Select-Object -First 1
-          Write-Host "VS      = $vs"
-          Write-Host "MSVC    = $($msvc.FullName)"
+          $msvc = Get-ChildItem "$vs\VC\Tools\MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          Write-Host "VS   = $vs"
+          Write-Host "MSVC = $($msvc.FullName)"
           if (-not (Test-Path "$($msvc.FullName)\atlmfc\include\afxwin.h")) {
-            throw 'ATL/MFC component missing on the runner image'
+            throw "ATL/MFC component missing at $($msvc.FullName)\atlmfc"
           }
-          $p = $msvc.FullName -replace '\\', '/'
-          "PM_TC=$p"      | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "PM_MSVC=$p"    | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "PM_SDK=C:/Program Files (x86)/Windows Kits/10" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          $sdkver = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\Include' | Sort-Object Name -Descending | Select-Object -First 1
-          "PM_SDKVER=$($sdkver.Name)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          Write-Host "SDK     = $($sdkver.Name)"
+
+          # ---- Windows SDK ---------------------------------------------
+          # Do NOT hardcode the drive or path: on the runner image the SDK may
+          # live on C: or D:, and the version changes with the image.
+          # Probe several candidate roots and pick the highest SDK version.
+          $sdkRoots = @(
+            "${env:ProgramFiles(x86)}\Windows Kits\10",
+            "$env:ProgramFiles\Windows Kits\10",
+            "D:\Windows Kits\10",
+            "C:\Windows Kits\10"
+          ) | Where-Object { Test-Path (Join-Path $_ 'Include') }
+
+          if (-not $sdkRoots) { throw 'Windows SDK not found in any known location' }
+
+          $sdkRoot = $sdkRoots | Select-Object -First 1
+          $sdkVerDir = Get-ChildItem (Join-Path $sdkRoot 'Include') -Directory |
+                         Where-Object { Test-Path (Join-Path $_.FullName 'ucrt\new.h') } |
+                         Sort-Object { [version]$_.Name } -Descending |
+                         Select-Object -First 1
+          if (-not $sdkVerDir) { throw "No usable SDK (ucrt\new.h missing) under $sdkRoot\Include" }
+
+          Write-Host "SDKroot = $sdkRoot"
+          Write-Host "SDKver  = $($sdkVerDir.Name)"
+
+          # All probe headers must exist, otherwise the build fails later with
+          # a batch of C1083 errors that are hard to trace back to the SDK.
+          foreach ($probe in @('ucrt\new.h', 'ucrt\crtdbg.h', 'um\windows.h', 'shared\winapifamily.h')) {
+            $full = Join-Path $sdkVerDir.FullName $probe
+            if (-not (Test-Path $full)) { throw "SDK header missing: $full" }
+          }
+          Write-Host "SDK header probes: OK"
+
+          # ---- SDK lib directories --------------------------------------
+          foreach ($libProbe in @('ucrt\x64', 'um\x64')) {
+            $full = Join-Path $sdkRoot "Lib\$($sdkVerDir.Name)\$libProbe"
+            if (-not (Test-Path $full)) { throw "SDK lib dir missing: $full" }
+          }
+          Write-Host "SDK lib probes: OK"
+
+          # rc.exe ships with the SDK; its path depends on the SDK version
+          $rc = Get-ChildItem (Join-Path $sdkRoot "bin\$($sdkVerDir.Name)\x64\rc.exe") -ErrorAction SilentlyContinue
+          if (-not $rc) { throw "rc.exe not found under $sdkRoot\bin\$($sdkVerDir.Name)\x64" }
+          Write-Host "RC   = $($rc.FullName)"
+
+          $msvcPath = $msvc.FullName -replace '\\', '/'
+          $sdkPath  = $sdkRoot      -replace '\\', '/'
+          "PM_TC=$msvcPath"           | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "PM_MSVC=$msvcPath"         | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "PM_SDK=$sdkPath"           | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "PM_SDKVER=$($sdkVerDir.Name)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+          # Full environment dump, so a failure can be diagnosed from the log
+          Write-Host "`n===== toolchain summary ====="
+          Write-Host "PM_TC     = $msvcPath"
+          Write-Host "PM_MSVC   = $msvcPath"
+          Write-Host "PM_SDK    = $sdkPath"
+          Write-Host "PM_SDKVER = $($sdkVerDir.Name)"
+          Write-Host "available SDK versions under $sdkRoot\Include :"
+          Get-ChildItem (Join-Path $sdkRoot 'Include') -Directory | ForEach-Object { Write-Host "  - $($_.Name)" }
+          Write-Host "available MSVC versions under $vs\VC\Tools\MSVC :"
+          Get-ChildItem "$vs\VC\Tools\MSVC" -Directory | ForEach-Object { Write-Host "  - $($_.Name)" }
+          Write-Host "=============================`n"
 
       - name: Build (compile -> link -> smoke test)
         shell: bash

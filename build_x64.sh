@@ -31,6 +31,22 @@ PROJ="$ROOT/PowerMonitor"
 OUT="$ROOT/x64/Release"
 OBJ="$OUT/obj"
 
+# 在 CI 上，下面这些默认值（本机路径）一定是错的。若检测到运行在 GitHub
+# Actions 却没有显式传入工具链路径，直接报错退出，避免拿本机路径去编译、
+# 最后以一堆 C1083 的形式浪费一轮 CI。
+# 注意：必须在套用 :- 默认值 **之前** 判断，否则变量已被填上默认值。
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    _missing=""
+    for _v in PM_TC PM_MSVC PM_SDK PM_SDKVER; do
+        eval "_cur=\${$_v:-}"
+        [ -n "$_cur" ] || _missing="$_missing $_v"
+    done
+    if [ -n "$_missing" ]; then
+        echo "!! CI 环境下缺少工具链变量:$_missing（应由 workflow 的 Locate 步骤写入 GITHUB_ENV）"
+        exit 1
+    fi
+fi
+
 PM_TC="${PM_TC:-D:/MyFile/PowerMonitorPlugin/.pmtoolchain/VC/Tools/MSVC/14.51.36231}"
 PM_MSVC="${PM_MSVC:-D:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.51.36231}"
 PM_SDK="${PM_SDK:-D:/Windows Kits/10}"
@@ -39,6 +55,41 @@ PM_SDKVER="${PM_SDKVER:-10.0.26100.0}"
 CL="$PM_TC/bin/Hostx64/x64/cl.exe"
 LINK="$PM_TC/bin/Hostx64/x64/link.exe"
 RC="$PM_SDK/bin/$PM_SDKVER/x64/rc.exe"
+
+# 工具链完整性自检：路径写错时立刻给出可读的原因，而不是等编译报错
+for tool in "$CL" "$LINK" "$RC"; do
+    if [ ! -f "$tool" ]; then
+        echo "!! 工具链缺失: $tool"
+        echo "   PM_TC=$PM_TC"
+        echo "   PM_SDK=$PM_SDK  PM_SDKVER=$PM_SDKVER"
+        exit 1
+    fi
+done
+
+# SDK 关键头必须存在（历史上这里出过 C1083: new.h / crtdbg.h）。
+# 注意这里是"库定位错误"的典型症状，必须显式检查。
+for hdr in \
+    "$PM_SDK/Include/$PM_SDKVER/ucrt/new.h" \
+    "$PM_SDK/Include/$PM_SDKVER/ucrt/crtdbg.h" \
+    "$PM_SDK/Include/$PM_SDKVER/um/windows.h"
+do
+    if [ ! -f "$hdr" ]; then
+        echo "!! 缺少 SDK 头文件: $hdr"
+        echo "   PM_SDK=$PM_SDK  PM_SDKVER=$PM_SDKVER（请确认该版本已安装）"
+        exit 1
+    fi
+done
+
+# MFC 头可能分散在两处（一种常见布局是 PM_TC 提供 MFC、PM_MSVC 只提供 ATL），
+# 因此只要二者之一含有 afxwin.h 即视为满足 —— 与上面 INCLUDE 的拼法一致。
+if [ ! -f "$PM_TC/atlmfc/include/afxwin.h" ] && [ ! -f "$PM_MSVC/atlmfc/include/afxwin.h" ]; then
+    echo "!! 找不到 MFC 头 afxwin.h，已检查："
+    echo "   $PM_TC/atlmfc/include/"
+    echo "   $PM_MSVC/atlmfc/include/"
+    exit 1
+fi
+
+echo "=== toolchain OK (MSVC=$PM_TC, SDK=$PM_SDKVER) ==="
 
 export MSYS2_ARG_CONV_EXCL='*'
 
