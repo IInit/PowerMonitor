@@ -1,0 +1,81 @@
+﻿// PowerMonitor.rc : 资源文件
+// 注意：本 pragma 必须放在所有 #include 之前。
+// 否则被包含的 resource.h 会按系统 ANSI 代码页（中文系统为 GBK）解码，
+// 其中文注释的末字节可能与本行换行符拼成双字节字符，把下一行 #define 吞进注释——
+// 典型后果：IDD_OPTIONS 宏未定义，rc 把对话框存成字符串名 "IDD_OPTIONS"，
+// 运行时 FindResource(120) 失败，选项设置窗口根本打不开。
+#pragma code_page(65001)
+
+#include "afxres.h"
+#include "resource.h"
+
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+
+// ---------------------------------------------------------------- 图标
+IDI_POWERMONITOR           ICON                    "res\\power_monitor.ico"
+
+// ---------------------------------------------------------------- 对话框
+IDD_OPTIONS DIALOGEX 0, 0, 210, 190
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "硬件与采样设置"
+FONT 9, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "确定",IDOK,98,172,50,16
+    PUSHBUTTON      "取消",IDCANCEL,152,172,50,16
+END
+
+// 注意：本对话框的其余控件由 CTariffDlg::OnInitDialog 按“对话框单位(DLU)”动态创建，
+// 客户区尺寸也由 MapDialogRect 换算，切勿在代码里改成固定像素尺寸——
+// 否则在非 100% DPI 时模板按钮会被裁到客户区之外。
+IDD_TARIFF DIALOGEX 0, 0, 225, 260
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "电价设置"
+FONT 9, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "应用",IDC_TAR_APPLY,59,242,50,16
+    DEFPUSHBUTTON   "确定",IDOK,113,242,50,16
+    PUSHBUTTON      "取消",IDCANCEL,167,242,50,16
+END
+
+IDD_STATS DIALOGEX 0, 0, 280, 255
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "用量统计"
+FONT 9, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "关闭",IDOK,222,237,50,16
+END
+
+// ---------------------------------------------------------------- 版本信息
+1 VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", "init"
+            VALUE "FileDescription", "PowerMonitor —— TrafficMonitor 整机功耗监测插件"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "PowerMonitor"
+            VALUE "LegalCopyright", "MIT License (c) 2026 init"
+            VALUE "OriginalFilename", "PowerMonitor.dll"
+            VALUE "ProductName", "PowerMonitor"
+            VALUE "ProductVersion", "1.0.0.0"
+            VALUE "Comments", "https://github.com/IInit"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END

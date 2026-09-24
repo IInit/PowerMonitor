@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Core">
+      <UniqueIdentifier>{a1111111-1111-1111-1111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Acquisition">
+      <UniqueIdentifier>{a2222222-2222-2222-2222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Plugin">
+      <UniqueIdentifier>{a3333333-3333-3333-3333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="UI">
+      <UniqueIdentifier>{a4444444-4444-4444-4444-444444444444}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDK">
+      <UniqueIdentifier>{a5555555-5555-5555-5555-555555555555}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{a6666666-6666-6666-6666-666666666666}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h"><Filter>SDK</Filter></ClInclude>
+    <ClInclude Include="pch.h"><Filter>SDK</Filter></ClInclude>
+    <ClInclude Include="resource.h"><Filter>Resource Files</Filter></ClInclude>
+    <ClInclude Include="Config.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="FileUtil.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Tariffs.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Meter.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Fields.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Sensors.h"><Filter>Acquisition</Filter></ClInclude>
+    <ClInclude Include="PowerOn.h"><Filter>Acquisition</Filter></ClInclude>
+    <ClInclude Include="Encoding.h"><Filter>Plugin</Filter></ClInclude>
+    <ClInclude Include="PowerMonitor.h"><Filter>Plugin</Filter></ClInclude>
+    <ClInclude Include="PowerMonitorItem.h"><Filter>Plugin</Filter></ClInclude>
+    <ClInclude Include="OptionsDlg.h"><Filter>UI</Filter></ClInclude>
+    <ClInclude Include="TariffDlg.h"><Filter>UI</Filter></ClInclude>
+    <ClInclude Include="StatsDlg.h"><Filter>UI</Filter></ClInclude>
+    <ClInclude Include="include\PluginInterface.h"><Filter>SDK</Filter></ClInclude>
+    <ClInclude Include="yyjson\yyjson.h"><Filter>SDK</Filter></ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp"><Filter>SDK</Filter></ClCompile>
+    <ClCompile Include="Config.cpp"><Filter>Core</Filter></ClCompile>
+    <ClCompile Include="FileUtil.cpp"><Filter>Core</Filter></ClCompile>
+    <ClCompile Include="Tariffs.cpp"><Filter>Core</Filter></ClCompile>
+    <ClCompile Include="Meter.cpp"><Filter>Core</Filter></ClCompile>
+    <ClCompile Include="Fields.cpp"><Filter>Core</Filter></ClCompile>
+    <ClCompile Include="Sensors.cpp"><Filter>Acquisition</Filter></ClCompile>
+    <ClCompile Include="PowerOn.cpp"><Filter>Acquisition</Filter></ClCompile>
+    <ClCompile Include="Encoding.cpp"><Filter>Plugin</Filter></ClCompile>
+    <ClCompile Include="PowerMonitor.cpp"><Filter>Plugin</Filter></ClCompile>
+    <ClCompile Include="PowerMonitorItem.cpp"><Filter>Plugin</Filter></ClCompile>
+    <ClCompile Include="OptionsDlg.cpp"><Filter>UI</Filter></ClCompile>
+    <ClCompile Include="TariffDlg.cpp"><Filter>UI</Filter></ClCompile>
+    <ClCompile Include="StatsDlg.cpp"><Filter>UI</Filter></ClCompile>
+    <ClCompile Include="yyjson\yyjson.c"><Filter>SDK</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="PowerMonitor.rc"><Filter>Resource Files</Filter></ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\power_monitor.ico"><Filter>Resource Files</Filter></None>
+  </ItemGroup>
+</Project>

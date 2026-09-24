@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 360" width="900" height="360" font-family="'Segoe UI','Microsoft YaHei','MS Shell Dlg',sans-serif">
+  <defs>
+    <linearGradient id="desk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E3EAF5"/>
+      <stop offset="1" stop-color="#C6D2E7"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F8FAFD"/>
+      <stop offset="1" stop-color="#EDF1F7"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A5F9E"/>
+      <stop offset="1" stop-color="#1E2E52"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#0B1B33" flood-opacity="0.20"/>
+    </filter>
+    <marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0 0 L9 4.5 L0 9 z" fill="#1D4ED8"/>
+    </marker>
+    <style>
+      .tray{font-size:13px;fill:#1B1B1B}
+      .dim{font-size:13px;fill:#4A4A4A}
+      .clock{font-size:12px;fill:#1B1B1B}
+      .tip{font-size:13px;fill:#1F2937}
+      .tipb{font-size:13.5px;fill:#111827;font-weight:600}
+      .hl{font-size:12.5px;fill:#1D4ED8;font-weight:600}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="312" fill="url(#desk)"/>
+  <rect x="0" y="312" width="900" height="48" fill="url(#bar)"/>
+  <line x1="0" y1="312" x2="900" y2="312" stroke="#D3DAE6"/>
+
+  <!-- 说明 -->
+  <text x="24" y="42" font-size="15" font-weight="600" fill="#16213A">TrafficMonitor 任务栏（托盘区）显示效果</text>
+  <text x="24" y="64" font-size="12.5" fill="#3F4A5A">勾选显示项后直接跟随任务栏刷新；鼠标悬停查看详情</text>
+
+  <!-- 悬停提示 -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="92" width="330" height="112" rx="8" fill="#FFFFFF" stroke="#C9D2E0"/>
+  </g>
+  <text class="tipb" x="78" y="116">整机功耗监控</text>
+  <text class="tip" x="78" y="138">开机 3:25:10 · 本次 0.85 kWh</text>
+  <text class="tip" x="78" y="160">当前 128 W（CPU 42 · 显卡 65 · 其他 35）</text>
+  <text class="tip" x="78" y="182">今日 1.20 kWh · ¥0.63</text>
+
+  <!-- 提示 -> 插件项 的连接线 -->
+  <path d="M390 148 H452 V333 H476" fill="none" stroke="#1D4ED8" stroke-width="1.3"
+        stroke-dasharray="4 3" marker-end="url(#ar2)"/>
+  <text x="398" y="140" font-size="11.5" fill="#1D4ED8">悬停</text>
+
+  <!-- 插件显示项高亮 -->
+  <rect x="486" y="318" width="248" height="36" rx="8" fill="none" stroke="#1D4ED8"
+        stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text class="hl" x="610" y="308" text-anchor="middle">PowerMonitor 显示项（共 15 项，任选）</text>
+
+  <!-- 开始 / 搜索 -->
+  <g transform="translate(22,322)">
+    <rect x="0" y="0" width="9" height="9" rx="1.5" fill="#2C6BED"/>
+    <rect x="12" y="0" width="9" height="9" rx="1.5" fill="#2C6BED"/>
+    <rect x="0" y="12" width="9" height="9" rx="1.5" fill="#2C6BED"/>
+    <rect x="12" y="12" width="9" height="9" rx="1.5" fill="#2C6BED"/>
+  </g>
+  <rect x="76" y="320" width="140" height="32" rx="16" fill="#FFFFFF" stroke="#D3DAE6"/>
+  <circle cx="98" cy="336" r="5.5" fill="none" stroke="#6B7280" stroke-width="1.6"/>
+  <line x1="102" y1="340" x2="107" y2="345" stroke="#6B7280" stroke-width="1.6"/>
+  <text class="dim" x="118" y="341">搜索</text>
+
+  <!-- 应用图标 -->
+  <g opacity="0.8">
+    <rect x="252" y="322" width="28" height="28" rx="7" fill="#9DB2D4"/>
+    <rect x="290" y="322" width="28" height="28" rx="7" fill="#B7C6DE"/>
+  </g>
+
+  <!-- 插件显示项 -->
+  <rect x="500" y="324" width="24" height="24" rx="6" fill="url(#bolt)"/>
+  <path d="M515.4 327.5 l-6.2 9.4 l3.3 0 l-1.5 6.6 l6.1 -9.5 l-3.2 0 z" fill="#FFC93C"/>
+  <text class="tray" x="530" y="341" font-weight="600">128 W</text>
+  <text class="tray" x="590" y="341">¥0.07/h</text>
+  <text class="tray" x="654" y="341">0.85 kWh</text>
+
+  <!-- 主程序自带的其它监控项 -->
+  <g class="dim" opacity="0.85">
+    <text x="750" y="341">↑ 1.2 MB/s</text>
+  </g>
+
+  <line x1="866" y1="324" x2="866" y2="348" stroke="#D3DAE6"/>
+  <text class="clock" x="882" y="336" text-anchor="middle">20:33</text>
+  <text class="clock" x="882" y="350" text-anchor="middle">2026/9/24</text>
+</svg>

@@ -1,0 +1,37 @@
+# 构建产物
+x64/
+Debug/
+Release/
+*.obj
+*.res
+*.exp
+*.lib
+*.pdb
+*.ilk
+*.idb
+*.tlog
+*.log
+
+# 本地工具链与依赖缓存
+.pmtoolchain/
+
+# 第三方源码由 tools/fetch_deps.py 按固定版本 + SHA-256 拉取，不入库
+PowerMonitor/yyjson/yyjson.c
+PowerMonitor/yyjson/yyjson.h
+
+# 图标为二进制，由 tools/make_icon.py 确定性重绘，不入库
+PowerMonitor/res/power_monitor.ico
+
+# 发布打包目录
+dist/
+
+# 编辑器 / 系统
+*.vcxproj.user
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# 工作区本地数据（记忆 / 会话）
+.workbuddy/

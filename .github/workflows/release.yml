@@ -1,0 +1,105 @@
+name: build-and-release
+
+# 打 tag（v*）时自动发布；推送到 main 时构建并确保 release 存在；
+# 也支持手动触发。
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  VERSION: v1.0.0
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Locate MSVC / Windows SDK
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw 'Visual Studio with VC tools not found' }
+          $msvc = Get-ChildItem "$vs\VC\Tools\MSVC" | Sort-Object Name -Descending | Select-Object -First 1
+          Write-Host "VS      = $vs"
+          Write-Host "MSVC    = $($msvc.FullName)"
+          if (-not (Test-Path "$($msvc.FullName)\atlmfc\include\afxwin.h")) {
+            throw 'ATL/MFC component missing on the runner image'
+          }
+          $p = $msvc.FullName -replace '\\', '/'
+          "PM_TC=$p"      | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "PM_MSVC=$p"    | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "PM_SDK=C:/Program Files (x86)/Windows Kits/10" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          $sdkver = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\Include' | Sort-Object Name -Descending | Select-Object -First 1
+          "PM_SDKVER=$($sdkver.Name)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          Write-Host "SDK     = $($sdkver.Name)"
+
+      - name: Build (compile -> link -> smoke test)
+        shell: bash
+        env:
+          PM_SKIP_DIALOG_PROBE: '1'
+        run: |
+          bash build_x64.sh > build.log 2>&1
+          rc=$?
+          tail -n 120 build.log
+          exit $rc
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/pkg | Out-Null
+          Copy-Item x64/Release/PowerMonitor.dll dist/pkg/
+          Copy-Item PowerMonitor/res/power_monitor.ico dist/pkg/
+          Copy-Item README.md, LICENSE dist/pkg/
+          Compress-Archive -Path dist/pkg/* -DestinationPath "dist/PowerMonitor-$env:VERSION-x64.zip" -Force
+          Get-FileHash x64/Release/PowerMonitor.dll -Algorithm SHA256 | Format-List
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerMonitor-x64
+          path: |
+            x64/Release/PowerMonitor.dll
+            dist/PowerMonitor-${{ env.VERSION }}-x64.zip
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$env:VERSION" 2>&1 | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $env:VERSION already exists - nothing to do."
+            exit 0
+          }
+          gh release create "$env:VERSION" `
+            --title "PowerMonitor $env:VERSION" `
+            --notes-file .github/RELEASE_NOTES.md `
+            "x64/Release/PowerMonitor.dll" `
+            "dist/PowerMonitor-$env:VERSION-x64.zip"
+
+      - name: Report failure as an issue
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $log = ''
+          if (Test-Path build.log) { $log = Get-Content build.log -Raw }
+          if ($log.Length -gt 60000) { $log = $log.Substring($log.Length - 60000) }
+          $body = "Build failed on run $env:GITHUB_RUN_ID`n`n``````text`n$log`n``````"
+          $body | Out-File -Encoding utf8 failure.md
+          gh issue create --title "[ci] build failed (run $env:GITHUB_RUN_ID)" --body-file failure.md
