@@ -95,8 +95,10 @@ int wmain(int argc, wchar_t** argv)
 
     // ---- 署名与入口必须指向本项目作者（防止品牌信息回退） ----
     Check(std::wstring(plugin->GetInfo(ITMPlugin::TMI_AUTHOR)) == L"init", "TMI_AUTHOR == init");
-    Check(std::wstring(plugin->GetInfo(ITMPlugin::TMI_URL)).find(L"github.com/IInit") != std::wstring::npos,
-          "TMI_URL points to github.com/IInit");
+    // 精确到仓库地址：「关于 / 项目主页」打开的是项目仓库，而不是作者的个人主页。
+    // 只校验 "github.com/IInit" 会放过退化成个人主页的情况（它是仓库 URL 的前缀）。
+    Check(std::wstring(plugin->GetInfo(ITMPlugin::TMI_URL)) == L"https://github.com/IInit/PowerMonitor",
+          "TMI_URL == https://github.com/IInit/PowerMonitor");
     for (int i = 0; i <= (int)ITMPlugin::TMI_MAX; ++i)
     {
         const wchar_t* v = plugin->GetInfo((ITMPlugin::PluginInfoIndex)i);

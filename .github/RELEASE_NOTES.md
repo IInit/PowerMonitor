@@ -2,7 +2,7 @@
 
 TrafficMonitor 整机功耗监测插件 · 首个公开发布版本
 A TrafficMonitor plugin that shows live PC power draw, energy and electricity cost.
-Author: **init** · <https://github.com/IInit>
+Author: **init** · <https://github.com/IInit/PowerMonitor>
 
 ### 中文 · 更新说明
 
@@ -33,7 +33,7 @@ Author: **init** · <https://github.com/IInit>
 **工程**
 
 - 全新插件图标（深蓝圆角方块 + 琥珀色闪电），由 `tools/make_icon.py` 确定性重绘。
-- 项目更名为 PowerMonitor，署名为 **init**，项目主页指向 <https://github.com/IInit>。
+- 项目更名为 PowerMonitor，署名为 **init**，项目主页指向 <https://github.com/IInit/PowerMonitor>。
 - `build_x64.sh` 一条命令完成「编译 → 链接 → 冒烟测试 → 对话框探针」，并新增 GitHub Actions 自动构建发布。
 - 新增 `tools/fetch_deps.py`：按固定版本 + SHA-256 获取 yyjson 0.4.0，仓库保持纯文本。
 
@@ -74,7 +74,7 @@ Author: **init** · <https://github.com/IInit>
 
 - Brand-new plugin icon (dark-blue rounded square with an amber bolt), drawn deterministically by
   `tools/make_icon.py`.
-- Project renamed to PowerMonitor, authored by **init**, homepage <https://github.com/IInit>.
+- Project renamed to PowerMonitor, authored by **init**, homepage <https://github.com/IInit/PowerMonitor>.
 - `build_x64.sh` runs "compile → link → smoke test → dialog probe" in one command, and GitHub Actions
   now builds and publishes automatically.
 - New `tools/fetch_deps.py` fetches yyjson 0.4.0 by pinned version + SHA-256, keeping the repo text-only.

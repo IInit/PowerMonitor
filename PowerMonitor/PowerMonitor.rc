@@ -71,7 +71,7 @@ BEGIN
             VALUE "OriginalFilename", "PowerMonitor.dll"
             VALUE "ProductName", "PowerMonitor"
             VALUE "ProductVersion", "1.0.0.0"
-            VALUE "Comments", "https://github.com/IInit"
+            VALUE "Comments", "https://github.com/IInit/PowerMonitor"
         END
     END
     BLOCK "VarFileInfo"

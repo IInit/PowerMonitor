@@ -16,7 +16,7 @@
 // 单一来源：所有对外署名 / 入口链接都从这里取，避免各处硬编码不一致。
 static const wchar_t* const kProductName = L"PowerMonitor 功耗监测";
 static const wchar_t* const kAuthor = L"init";
-static const wchar_t* const kHomepage = L"https://github.com/IInit";
+static const wchar_t* const kHomepage = L"https://github.com/IInit/PowerMonitor";
 static const wchar_t* const kVersion = L"1.0.0";
 static const wchar_t* const kLicense = L"MIT License (c) 2026 init";
 

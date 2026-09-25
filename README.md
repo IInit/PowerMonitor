@@ -10,7 +10,7 @@
 一个 [TrafficMonitor](https://github.com/zhongyang219/TrafficMonitor) 插件：在任务栏窗口 / 主窗口里
 直接显示**整机实时功率、能耗与电费**，并提供峰谷分时电价设置与多维用量统计界面。
 
-> 作者 / 维护者：**init** ｜ 项目主页：<https://github.com/IInit>
+> 作者 / 维护者：**init** ｜ 项目主页：<https://github.com/IInit/PowerMonitor>
 
 ![任务栏显示效果](docs/images/preview-taskbar.svg)
 
@@ -61,7 +61,7 @@
 2. **电价设置…** —— 选择省份与用电方案（自动填充预设电价），也可手动改单价、峰谷时段、丰水月。
 3. **重置本次统计** —— 清空本次开机的能耗、电费与峰值记录（历史日 / 月 / 年累计保留）。
 4. **关于…** —— 版本、作者、许可与项目主页，可直接跳转浏览器。
-5. **项目主页（GitHub）…** —— 直接打开 <https://github.com/IInit>。
+5. **项目主页（GitHub）…** —— 直接打开 <https://github.com/IInit/PowerMonitor>。
 
 ### 电价设置窗口
 
@@ -178,7 +178,7 @@ yyjson 0.4.0 的 `src/yyjson.h`、`src/yyjson.c` 放到 `PowerMonitor/yyjson/` �
 
 | 测试 | 覆盖内容 |
 | --- | --- |
-| `tests/windows/smoke_host.cpp`（`PluginSmokeTest.exe`） | 真实加载 DLL：导出符号、15 个显示项、越界返回 `nullptr`、采样、Tooltip、5 个命令、**署名与主页必须为 init / github.com/IInit 且不含上游作者串**、配置落盘 |
+| `tests/windows/smoke_host.cpp`（`PluginSmokeTest.exe`） | 真实加载 DLL：导出符号、15 个显示项、越界返回 `nullptr`、采样、Tooltip、5 个命令、**署名与主页必须为 init / https://github.com/IInit/PowerMonitor 且不含上游作者串**、配置落盘 |
 | `tests/windows/dialog_probe.cpp`（`DlgProbe.exe`） | 真实打开对话框并枚举控件树：资源齐备、控件可见且未被裁剪、10 个字段非空、「应用」后回显且 JSON 落盘、确定后重开回读、多级目录自动补全、不可写路径必须报错 |
 
 核心算法层另有跨平台单元测试 `tests/test_main.cpp`（不依赖 Windows / MFC）：
@@ -229,7 +229,7 @@ MIT License，Copyright (c) 2026 **init**。
 shows your PC's **live power draw, energy consumption and electricity cost** right in the taskbar
 window / main window, with time-of-use tariff settings and multi-dimensional usage statistics.
 
-> Author: **init** ｜ Homepage: <https://github.com/IInit>
+> Author: **init** ｜ Homepage: <https://github.com/IInit/PowerMonitor>
 
 ![Taskbar preview](docs/images/preview-taskbar.svg)
 
@@ -262,7 +262,7 @@ Enable them under TrafficMonitor's *Display settings*:
    peak/valley windows and wet-season months by hand.
 3. **Reset current session** — clears this boot's energy, cost and peak records (history is kept).
 4. **About…** — version, author, license and homepage link.
-5. **Homepage (GitHub)…** — opens <https://github.com/IInit>.
+5. **Homepage (GitHub)…** — opens <https://github.com/IInit/PowerMonitor>.
 
 ![Tariff dialog](docs/images/dialog-tariff.png)
 ![Hardware & sampling dialog](docs/images/dialog-options.png)
@@ -305,7 +305,7 @@ regenerated deterministically:
 ### Tests
 
 `PluginSmokeTest.exe` loads the real DLL and checks exports, the 15 items, out-of-range handling,
-sampling, tooltip, the 5 commands, **the author/homepage strings (init / github.com/IInit, and no
+sampling, tooltip, the 5 commands, **the author/homepage strings (init / https://github.com/IInit/PowerMonitor, and no
 upstream author string)** and config persistence. `DlgProbe.exe` opens the dialogs for real and
 enumerates the control tree: resources present, controls visible and inside the client area, all
 fields non-empty, *Apply* persisting to disk with an echo, values re-read after reopening,
