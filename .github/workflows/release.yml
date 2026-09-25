@@ -139,14 +139,25 @@ jobs:
         run: |
           gh release view "$env:VERSION" 2>&1 | Out-Null
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Release $env:VERSION already exists - nothing to do."
-            exit 0
+            # Release already exists: refresh its notes and assets in place.
+            # Do NOT exit early - otherwise a fixed build would never reach the
+            # release page and users would keep downloading the old binary.
+            Write-Host "Release $env:VERSION exists - updating notes and assets."
+            gh release edit "$env:VERSION" `
+              --title "PowerMonitor $env:VERSION" `
+              --notes-file .github/RELEASE_NOTES.md
+            gh release upload "$env:VERSION" `
+              "x64/Release/PowerMonitor.dll" `
+              "dist/PowerMonitor-$env:VERSION-x64.zip" `
+              --clobber
+          } else {
+            gh release create "$env:VERSION" `
+              --title "PowerMonitor $env:VERSION" `
+              --notes-file .github/RELEASE_NOTES.md `
+              "x64/Release/PowerMonitor.dll" `
+              "dist/PowerMonitor-$env:VERSION-x64.zip"
           }
-          gh release create "$env:VERSION" `
-            --title "PowerMonitor $env:VERSION" `
-            --notes-file .github/RELEASE_NOTES.md `
-            "x64/Release/PowerMonitor.dll" `
-            "dist/PowerMonitor-$env:VERSION-x64.zip"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Report failure as an issue
         if: failure()
